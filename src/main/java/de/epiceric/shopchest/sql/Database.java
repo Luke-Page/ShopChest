@@ -46,6 +46,7 @@ public abstract class Database {
     String tableLogs;
     String tableLogouts;
     String tableFields;
+    String tablePlayerIncrease;
 
     ShopChest plugin;
     HikariDataSource dataSource;
@@ -63,6 +64,8 @@ public abstract class Database {
     abstract String getQueryCreateTableLogout();
 
     abstract String getQueryCreateTableFields();
+
+    abstract String getQueryCreateTablePlayerIncrease();
 
     abstract String getQueryGetTable();
 
@@ -115,6 +118,7 @@ public abstract class Database {
                 String queryRenameTableLogouts = "ALTER TABLE player_logout RENAME TO " + tableLogouts;
                 String queryRenameTableLogs = "ALTER TABLE shop_log RENAME TO backup_shop_log"; // for backup
                 String queryRenameTableShops = "ALTER TABLE shops RENAME TO backup_shops"; // for backup
+                //String queryRenameTablePlayerIncrease = "ALTER TABLE shops RENAME TO backup_shops"; // for backup
 
                 plugin.getLogger().info("Updating database... (#1)");
 
@@ -252,6 +256,7 @@ public abstract class Database {
         this.tableLogs = Config.databaseTablePrefix + "economy_logs";
         this.tableLogouts = Config.databaseTablePrefix + "player_logouts";
         this.tableFields = Config.databaseTablePrefix + "fields";
+        this.tablePlayerIncrease = Config.databaseTablePrefix + "player_increase";
 
         new BukkitRunnable() {
             @Override
@@ -297,6 +302,11 @@ public abstract class Database {
                     // Create fields table
                     try (Statement s = con.createStatement()) {
                         s.executeUpdate(getQueryCreateTableFields());
+                    }
+
+                    // Create fields table
+                    try (Statement s = con.createStatement()) {
+                        s.executeUpdate(getQueryCreateTablePlayerIncrease());
                     }
 
                     // Clean up economy log
@@ -368,7 +378,7 @@ public abstract class Database {
 
     /**
      * Get shop amounts for each player
-     * 
+     *
      * @param callback Callback that returns a map of each player's shop amount
      */
     public void getShopAmounts(final Callback<Map<UUID, Integer>> callback) {
@@ -541,10 +551,25 @@ public abstract class Database {
                             double buyPrice = rs.getDouble("buyprice");
                             double sellPrice = rs.getDouble("sellprice");
                             ShopType shopType = ShopType.valueOf(rs.getString("shoptype"));
-    
-                            plugin.debug("Initializing new shop... (#" + id + ")");
-    
-                            shops.add(new Shop(id, plugin, vendor, product, location, buyPrice, sellPrice, shopType));
+
+//                            plugin.getLogger().severe("before if exp null");
+                            double buyCoefficient = rs.getDouble("exponentialcoefficient");
+                            if (buyCoefficient != 0) {
+//                                plugin.getLogger().severe(id + " not null!");
+                                // set exp stuff
+//                                double buyCoefficient = rs.getDouble("exponentialcoefficient");
+                                int buyIterator = rs.getInt("exponentialIterator");
+                                int buyReturnRate = rs.getInt("returnRate");
+
+                                plugin.debug("Initializing new exp shop... (#" + id + ")");
+                                shops.add(new Shop(id, plugin, vendor, product, location, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate));
+
+                            } else {
+//                                plugin.getLogger().severe(id + " was null!");
+                                plugin.debug("Initializing new shop... (#" + id + ")");
+                                shops.add(new Shop(id, plugin, vendor, product, location, buyPrice, sellPrice, shopType));
+                            }
+
                         }
                     } catch (SQLException ex) {
                         if (callback != null) {
@@ -574,18 +599,31 @@ public abstract class Database {
      *                 given (as {@code int})
      */
     public void addShop(final Shop shop, final Callback<Integer> callback) {
-        final String queryNoId = "REPLACE INTO " + tableShops + " (vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype) VALUES(?,?,?,?,?,?,?,?,?,?)";
-        final String queryWithId = "REPLACE INTO " + tableShops + " (id,vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype) VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+        final String queryNoId;
+        final String queryWithId;
+        if (!shop.isExpShop()) {
+            queryNoId = "REPLACE INTO " + tableShops + " (vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype) VALUES(?,?,?,?,?,?,?,?,?,?)";
+            queryWithId = "REPLACE INTO " + tableShops + " (id,vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype) VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+        } else {
+            queryNoId = "REPLACE INTO " + tableShops + " (vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype,exponentialcoefficient,exponentialIterator,returnRate)" +
+                    " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            queryWithId = "REPLACE INTO " + tableShops + " (id,vendor,product,amount,world,x,y,z,buyprice,sellprice,shoptype,exponentialcoefficient,exponentialIterator,returnRate)" +
+                    " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        }
+
 
         new BukkitRunnable() {
             @Override
             public void run() {
                 String query = shop.hasId() ? queryWithId : queryNoId;
 
+                plugin.debug("add shop");
+
                 try (Connection con = dataSource.getConnection();
                         PreparedStatement ps = con.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
                     int i = 0;
                     if (shop.hasId()) {
+                        plugin.getLogger().severe("shop has id");
                         i = 1;
                         ps.setInt(1, shop.getID());
                     }
@@ -600,7 +638,16 @@ public abstract class Database {
                     ps.setDouble(i+8, shop.getBuyPrice());
                     ps.setDouble(i+9, shop.getSellPrice());
                     ps.setString(i+10, shop.getShopType().toString());
+                    plugin.getLogger().severe("before if shop.isExpShop");
+                    if (shop.isExpShop()) {
+                        plugin.getLogger().severe("during if shop.isExpShop");
+                        ps.setDouble(i+11, shop.getBuyCoefficient());
+                        ps.setInt(i+12, shop.getBuyIterator());
+                        ps.setInt(i+13, shop.getBuyReturnRate());
+                        plugin.getLogger().severe("before execute!");
+                    }
                     ps.executeUpdate();
+                    plugin.getLogger().severe("executed order 66!");
 
                     if (!shop.hasId()) {
                         int shopId = -1;
@@ -611,7 +658,7 @@ public abstract class Database {
 
                         shop.setId(shopId);
                     }
-
+                    plugin.getLogger().severe("shop has id?");
                     if (callback != null) {
                         callback.callSyncResult(shop.getID());
                     }
@@ -693,6 +740,123 @@ public abstract class Database {
                 callback.callSyncResult(null);
             }
         }
+    }
+
+    /**
+     *
+     */
+    public void getPlayerIncreaseCounter(int shopId, Player player, final Callback<Integer> callback) { //final Callback<Integer> callback
+//        final int[] counter = {0};
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+
+//                try (Connection con = dataSource.getConnection();
+//                     PreparedStatement ps = con.prepareStatement("SELECT * FROM " + tablePlayerIncrease + " WHERE shop_id = ? AND player_uuid = ?")) {
+//                    ps.setInt(1, shopId);
+//                    ps.setString(2, player.getUniqueId().toString());
+//                    ResultSet rs = ps.executeQuery();
+                try (Connection con = dataSource.getConnection();
+                     PreparedStatement ps = con.prepareStatement("SELECT * FROM " + tablePlayerIncrease + " WHERE player_uuid = ? AND shop_id = ?")) { //player_uuid = ? AND
+//                    WHERE type='table' AND name=?"
+                    ps.setString(1, player.getUniqueId().toString());
+                    plugin.getLogger().warning("DEGUB 1");
+                    ps.setInt(2, shopId);
+                    plugin.getLogger().warning("DEGUB 2");
+                    ResultSet rs = ps.executeQuery();
+                    plugin.getLogger().warning("DEGUB 3");
+
+                    int counter = 0;
+
+                    while (rs.next()) {
+//                        ShopBuySellEvent.Type type = ShopBuySellEvent.Type.valueOf(rs.getString("type"));
+//
+//                        if (type == ShopBuySellEvent.Type.SELL) {
+//                            singleRevenue = -singleRevenue;
+//                        }
+//
+//                        if (timestamp > logoutTime) {
+//                            revenue += singleRevenue;
+//                        }
+
+                        counter = rs.getInt("counter");
+                    }
+                    if (callback != null) {
+                        callback.callSyncResult(counter);
+                    }
+//
+//                    rs.first();
+//                    plugin.getLogger().warning("DEGUB 4");
+//                    counter[0] = rs.getInt("counter");
+//                    plugin.getLogger().warning("DEGUB 5");
+//                    plugin.getLogger().severe("Player counter = " + counter);
+
+                } catch (SQLException ex) {
+                    if (callback != null) {
+                        callback.callSyncError(ex);
+                    }
+
+                    plugin.getLogger().severe("Failed to get player increase counter from database");
+                    plugin.debug("Failed to get revenue from player \"" + player.getUniqueId().toString() + "\"");
+                    plugin.debug(ex);
+                }
+            }
+        }.runTaskAsynchronously(plugin);
+        plugin.getLogger().warning("DEGUB 6");
+//        return counter[0];
+    }
+
+    /**
+     *
+     */
+    public void incrementPlayerIncreaseCounter(int shopId, Player player, final Callback<Void> callback) {
+        // REFACTOR - Move counter setting inside run block
+//        final int[] counter = {0};
+        int counter;
+        try {
+            counter = getPlayerIncreaseCounter(shopId, player, null);
+            plugin.getLogger().warning("Got counter");
+        } catch (Exception e) {
+            counter = 0;
+            plugin.getLogger().warning("Failed to get player increase counter from database, counter set to zero");
+        }
+//        int counter = getPlayerIncreaseCounter(shopId, player, null);
+//        counter++;
+        int finalCounter = counter;
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                plugin.getLogger().info("Before try");
+                try (Connection con = dataSource.getConnection();
+                     PreparedStatement ps = con.prepareStatement("REPLACE INTO " + tablePlayerIncrease + " (shop_id,player_uuid,time,counter,current_price) VALUES(?,?,?,?,?)")) {
+                    plugin.getLogger().info("After ps initiallised");
+                    ps.setInt(1, shopId);
+                    ps.setString(2, player.getUniqueId().toString());
+                    ps.setLong(3, 0);
+                    plugin.getLogger().info("befure finalCounter + 1");
+                    ps.setInt(4, finalCounter + 1);
+                    plugin.getLogger().info("After finalCounter + 1");
+                    ps.setDouble(5, 0);
+                    plugin.getLogger().info("before executeUpdate");
+                    ps.executeUpdate();
+                    plugin.getLogger().info("after executeUpdate");
+//                    ResultSet rs = ps.executeQuery();
+
+//                    rs.first();
+//                    counter[0] = rs.getInt("counter");
+                    plugin.getLogger().severe("Player counter incremented to = " + finalCounter + 1);
+
+                } catch (SQLException ex) {
+                    if (callback != null) {
+                        callback.callSyncError(ex);
+                    }
+
+                    plugin.getLogger().severe("Failed to increment player counter");
+                    plugin.debug("Failed to get revenue from player \"" + player.getUniqueId().toString() + "\"");
+                    plugin.debug(ex);
+                }
+            }
+        }.runTaskAsynchronously(plugin);
     }
 
     /**

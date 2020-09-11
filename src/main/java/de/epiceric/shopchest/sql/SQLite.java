@@ -80,7 +80,10 @@ public class SQLite extends Database {
             + "z INTEGER NOT NULL,"
             + "buyprice FLOAT NOT NULL,"
             + "sellprice FLOAT NOT NULL,"
-            + "shoptype TINYTEXT NOT NULL)";
+            + "shoptype TINYTEXT NOT NULL,"
+            + "exponentialcoefficient FLOAT,"
+            + "exponentialIterator INTEGER,"
+            + "returnRate INTEGER)";
     }
 
     @Override
@@ -118,6 +121,17 @@ public class SQLite extends Database {
         return "CREATE TABLE IF NOT EXISTS " + tableFields + " ("
             + "field VARCHAR(32) PRIMARY KEY NOT NULL,"
             + "value INTEGER NOT NULL)";
+    }
+
+    @Override
+    String getQueryCreateTablePlayerIncrease() {
+        return "CREATE TABLE IF NOT EXISTS " + tablePlayerIncrease + " ("
+                + "shop_id INTEGER NOT NULL,"
+                + "player_uuid TINYTEXT NOT NULL,"
+                + "time LONG NOT NULL,"
+                + "counter INTEGER NOT NULL,"
+                + "current_price FLOAT NOT NULL,"
+                + "PRIMARY KEY(shop_id,player_uuid))";
     }
 
     @Override

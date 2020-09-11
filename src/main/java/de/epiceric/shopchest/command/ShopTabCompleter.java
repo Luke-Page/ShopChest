@@ -28,6 +28,10 @@ class ShopTabCompleter implements TabCompleter {
         if (command.getName().equalsIgnoreCase(Config.mainCommandName)) {
 
             List<String> createSubCommands = Arrays.asList("admin", "normal");
+            List<String> adminSubCommands = Arrays.asList("exponential");
+            List<String> exponentialSubCoefficient = Arrays.asList("0.8");
+            List<String> exponentialSubIterator = Arrays.asList("3");
+            List<String> exponentialSubReturn = Arrays.asList("10");
             List<String> configSubCommands = Arrays.asList("add", "remove", "set");
             List<String> areaShopRemoveEvents = Arrays.asList("DELETE", "RESELL", "SELL", "UNRENT");
             List<String> townyShopPlots = Arrays.asList("ARENA", "COMMERCIAL", "EMBASSY", "FARM", "INN", "JAIL", "RESIDENTIAL", "SPLEEF", "WILDS");
@@ -117,6 +121,62 @@ class ShopTabCompleter implements TabCompleter {
                         return returnCompletions;
                     } else {
                         return createSubCommands;
+                    }
+                }
+            } else if (args.length == 6) {
+                if (args[0].equals("create") & args[4].equals("admin")) {
+                    if (!args[5].equals("")) {
+                        for (String s : adminSubCommands) {
+                            if (s.startsWith(args[5])) {
+                                returnCompletions.add(s);
+                            }
+                        }
+
+                        return returnCompletions;
+                    } else {
+                        return adminSubCommands;
+                    }
+                }
+            } else if (args.length == 7) {
+                if (args[0].equals("create") & args[4].equals("admin") & args[5].equals("exponential")) {
+                    if (!args[6].equals("")) {
+                        for (String s : exponentialSubCoefficient) {
+                            if (s.startsWith(args[6])) {
+                                returnCompletions.add(s);
+                            }
+                        }
+
+                        return returnCompletions;
+                    } else {
+                        return exponentialSubCoefficient;
+                    }
+                }
+            } else if (args.length == 8) {
+                if (args[0].equals("create") & args[4].equals("admin") & args[5].equals("exponential")) {
+                    if (!args[7].equals("")) {
+                        for (String s : exponentialSubIterator) {
+                            if (s.startsWith(args[7])) {
+                                returnCompletions.add(s);
+                            }
+                        }
+
+                        return returnCompletions;
+                    } else {
+                        return exponentialSubIterator;
+                    }
+                }
+            } else if (args.length == 9) {
+                if (args[0].equals("create") & args[4].equals("admin") & args[5].equals("exponential")) {
+                    if (!args[8].equals("")) {
+                        for (String s : exponentialSubReturn) {
+                            if (s.startsWith(args[8])) {
+                                returnCompletions.add(s);
+                            }
+                        }
+
+                        return returnCompletions;
+                    } else {
+                        return exponentialSubReturn;
                     }
                 }
             }

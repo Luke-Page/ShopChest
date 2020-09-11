@@ -104,6 +104,8 @@ class ShopCommandExecutor implements CommandExecutor {
                 if (sender instanceof Player) {
                     Player p = (Player) sender;
 
+                    p.sendMessage("Top of oncommand create Arg length = " + args.length);
+
                     if (subCommand.getName().equalsIgnoreCase("create")) {
                         if (args.length == 4) {
                             create(args, Shop.ShopType.NORMAL, p);
@@ -113,6 +115,20 @@ class ShopCommandExecutor implements CommandExecutor {
                             } else if (args[4].equalsIgnoreCase("admin")) {
                                 if (p.hasPermission(Permissions.CREATE_ADMIN)) {
                                     create(args, Shop.ShopType.ADMIN, p);
+                                } else {
+                                    p.sendMessage(LanguageUtils.getMessage(Message.NO_PERMISSION_CREATE_ADMIN));
+                                }
+                            } else {
+                                return false;
+                            }
+                        } else if (args.length == 9) { //
+                            p.sendMessage("args.length = 9");
+                            plugin.getLogger().info("On command - About to run create for exp shop");
+                            if (args[4].equalsIgnoreCase("admin")) {
+                                if (p.hasPermission(Permissions.CREATE_ADMIN)) {
+                                    if (args[5].equalsIgnoreCase("exponential")) {
+                                        create(args, Shop.ShopType.ADMIN, p);
+                                    }
                                 } else {
                                     p.sendMessage(LanguageUtils.getMessage(Message.NO_PERMISSION_CREATE_ADMIN));
                                 }
@@ -253,14 +269,30 @@ class ShopCommandExecutor implements CommandExecutor {
     private void create(String[] args, Shop.ShopType shopType, final Player p) {
         plugin.debug(p.getName() + " wants to create a shop");
 
-        int amount;
-        double buyPrice, sellPrice;
+        int amount, buyIterator = 0, buyReturnRate = 0;
+        double buyPrice, sellPrice, buyCoefficient = 0;
+        boolean expShop = false;
 
         // Check if amount and prices are valid
         try {
             amount = Integer.parseInt(args[1]);
             buyPrice = Double.parseDouble(args[2]);
             sellPrice = Double.parseDouble(args[3]);
+            p.sendMessage("args length = " + args.length);
+            plugin.getLogger().info("Create - before args.lenght=9");
+            plugin.getLogger().warning("Create - before args.lenght=9");
+            plugin.getLogger().severe("Create - before args.lenght=9");
+
+            if (args.length == 9) {
+                plugin.getLogger().info("Create - start of args.lenght=9");
+                p.sendMessage("Test: In create args=9");
+                buyCoefficient = Double.parseDouble(args[6]);
+                buyIterator = Integer.parseInt(args[7]);
+                buyReturnRate = Integer.parseInt(args[8]);
+                expShop = true;
+                p.sendMessage("Test: " + args[5] + buyCoefficient + " " + buyIterator + " " + buyReturnRate);
+                plugin.getLogger().info("Create - end of args.lenght=9");
+            }
         } catch (NumberFormatException e) {
             p.sendMessage(LanguageUtils.getMessage(Message.AMOUNT_PRICE_NOT_NUMBER));
             plugin.debug(p.getName() + " has entered an invalid amount and/or prices");
@@ -325,14 +357,19 @@ class ShopCommandExecutor implements CommandExecutor {
 
             p.sendMessage(LanguageUtils.getMessage(Message.SELECT_ITEM));
         } else {
-            SelectClickType ct = new SelectClickType(null, amount, buyPrice, sellPrice, shopType);
+            SelectClickType ct;
+            if (!expShop) {
+                ct = new SelectClickType(null, amount, buyPrice, sellPrice, shopType);
+            } else {
+                ct = new SelectClickType(null, amount, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate);
+            }
             ct.setItem(inHand);
             create2(p, ct);
         }
     }
 
     /**
-     * <b>SHALL ONLY BE CALLED VIA {@link ShopCommand#createShopAfterSelected()}</b>
+     * <b>SHALL ONLY BE CALLED VIA {@link ShopCommand#//createShopAfterSelected()}</b>
      */
     protected void create2(Player p, SelectClickType selectClickType) {
         ItemStack itemStack = selectClickType.getItem();
@@ -342,6 +379,20 @@ class ShopCommandExecutor implements CommandExecutor {
         boolean buyEnabled = buyPrice > 0;
         boolean sellEnabled = sellPrice > 0;
         ShopType shopType = selectClickType.getShopType();
+        double buyCoefficient = 0;
+        int buyIterator = 0;
+        int buyReturnRate = 0;
+
+        boolean expShop = selectClickType.isExpShop();
+        if (expShop) {
+            buyCoefficient = selectClickType.getBuyCoefficient();
+            buyIterator = selectClickType.getBuyIterator();
+            buyReturnRate = selectClickType.getBuyReturnRate();
+            // they better not put stupid stuff here cus I ain't checking for it yet.
+        } else {
+
+        }
+
 
         // Check if item on blacklist
         for (String item :Config.blacklist) {
@@ -449,11 +500,21 @@ class ShopCommandExecutor implements CommandExecutor {
         }
 
         ShopProduct product = new ShopProduct(itemStack, amount);
-        ShopPreCreateEvent event = new ShopPreCreateEvent(p, new Shop(plugin, p, product, null, buyPrice, sellPrice, shopType));
+        // Need 2 here
+        ShopPreCreateEvent event;
+        if (!expShop) {
+            event = new ShopPreCreateEvent(p, new Shop(plugin, p, product, null, buyPrice, sellPrice, shopType));
+        } else {
+            event = new ShopPreCreateEvent(p, new Shop(plugin, p, product, null, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate));
+        }
         Bukkit.getPluginManager().callEvent(event);
 
         if (!event.isCancelled()) {
-            ClickType.setPlayerClickType(p, new CreateClickType(product, buyPrice, sellPrice, shopType));
+            if (!expShop) {
+                ClickType.setPlayerClickType(p, new CreateClickType(product, buyPrice, sellPrice, shopType));
+            } else {
+                ClickType.setPlayerClickType(p, new CreateClickType(product, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate));
+            }
             plugin.debug(p.getName() + " can now click a chest");
             p.sendMessage(LanguageUtils.getMessage(Message.CLICK_CHEST_CREATE));
         } else {

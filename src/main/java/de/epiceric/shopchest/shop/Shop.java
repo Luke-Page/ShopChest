@@ -54,6 +54,13 @@ public class Shop {
     private final double sellPrice;
     private final ShopType shopType;
 
+    // Does this need to be final?
+    private boolean expShop;
+    private double buyCoefficient;
+    private int buyIterator;
+    private int buyReturnRate;
+
+
     private boolean created;
     private int id;
     private Hologram hologram;
@@ -69,11 +76,58 @@ public class Shop {
         this.buyPrice = buyPrice;
         this.sellPrice = sellPrice;
         this.shopType = shopType;
+        this.expShop = false;
     }
 
     public Shop(ShopChest plugin, OfflinePlayer vendor, ShopProduct product, Location location, double buyPrice, double sellPrice, ShopType shopType) {
         this(-1, plugin, vendor, product, location, buyPrice, sellPrice, shopType);
+        this.expShop = false;
     }
+
+    // For exponential shops
+    public Shop(ShopChest plugin, OfflinePlayer vendor, ShopProduct product, Location location, double buyPrice, double sellPrice, ShopType shopType, double buyCoefficient, int buyIterator, int buyReturnRate) {
+        this(-1, plugin, vendor, product, location, buyPrice, sellPrice, shopType);
+        this.buyCoefficient = buyCoefficient;
+        this.buyIterator = buyIterator;
+        this.buyReturnRate = buyReturnRate;
+        this.expShop = true;
+    }
+
+    // For exponential shops
+    public Shop(int id, ShopChest plugin, OfflinePlayer vendor, ShopProduct product, Location location, double buyPrice, double sellPrice, ShopType shopType, double buyCoefficient, int buyIterator, int buyReturnRate) {
+        this(id, plugin, vendor, product, location, buyPrice, sellPrice, shopType);
+        this.buyCoefficient = buyCoefficient;
+        this.buyIterator = buyIterator;
+        this.buyReturnRate = buyReturnRate;
+        this.expShop = true;
+    }
+
+    /**
+     * @return The buyCoefficient
+     */
+    public double getBuyCoefficient() {
+        return buyCoefficient;
+    }
+
+    /**
+     * @return The buyIterator
+     */
+    public int getBuyIterator() {
+        return buyIterator;
+    }
+
+    /**
+     * @return The buyReturnRate
+     */
+    public int getBuyReturnRate() {
+        return buyReturnRate;
+    }
+
+
+    public boolean isExpShop() {
+        return  expShop;
+    }
+
 
     /**
      * Test if this shop is equals to another
@@ -263,7 +317,7 @@ public class Shop {
         requirements.put(HologramFormat.Requirement.ITEM_NAME, itemStack.hasItemMeta() ? itemStack.getItemMeta().getDisplayName() : null);
         requirements.put(HologramFormat.Requirement.HAS_ENCHANTMENT, !LanguageUtils.getEnchantmentString(ItemUtils.getEnchantments(itemStack)).isEmpty());
         requirements.put(HologramFormat.Requirement.BUY_PRICE, getBuyPrice());
-        requirements.put(HologramFormat.Requirement.SELL_PRICE, getSellPrice());
+        requirements.put(HologramFormat.Requirement.SELL_PRICE, getSellPrice());  //    OVERLOAD THIS!    //
         requirements.put(HologramFormat.Requirement.HAS_POTION_EFFECT, ItemUtils.getPotionEffect(itemStack) != null);
         requirements.put(HologramFormat.Requirement.IS_MUSIC_DISC, itemStack.getType().isRecord());
         requirements.put(HologramFormat.Requirement.IS_POTION_EXTENDED, ItemUtils.isExtendedPotion(itemStack));
@@ -282,7 +336,7 @@ public class Shop {
         placeholders.put(Placeholder.ITEM_NAME, getProduct().getLocalizedName());
         placeholders.put(Placeholder.ENCHANTMENT, LanguageUtils.getEnchantmentString(ItemUtils.getEnchantments(itemStack)));
         placeholders.put(Placeholder.BUY_PRICE, getBuyPrice());
-        placeholders.put(Placeholder.SELL_PRICE, getSellPrice());
+        placeholders.put(Placeholder.SELL_PRICE, getSellPrice());  //    OVERLOAD THIS!    //
         placeholders.put(Placeholder.POTION_EFFECT, LanguageUtils.getPotionEffectName(itemStack));
         placeholders.put(Placeholder.MUSIC_TITLE, LanguageUtils.getMusicDiscName(itemStack.getType()));
         placeholders.put(Placeholder.BANNER_PATTERN_NAME, LanguageUtils.getBannerPatternName(itemStack.getType()));

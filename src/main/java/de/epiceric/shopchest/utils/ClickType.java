@@ -114,12 +114,30 @@ public class ClickType {
         private double sellPrice;
         private ShopType shopType;
 
+        private double buyCoefficient;
+        private int buyIterator;
+        private int buyReturnRate;
+        private boolean expShop;
+
         public CreateClickType(ShopProduct product, double buyPrice, double sellPrice, ShopType shopType) {
             super(EnumClickType.CREATE);
             this.product = product;
             this.sellPrice = sellPrice;
             this.buyPrice = buyPrice;
             this.shopType = shopType;
+            expShop = false;
+        }
+
+        public CreateClickType(ShopProduct product, double buyPrice, double sellPrice, ShopType shopType, double buyCoefficient, int buyIterator, int buyReturnRate) {
+            super(EnumClickType.CREATE);
+            this.product = product;
+            this.sellPrice = sellPrice;
+            this.buyPrice = buyPrice;
+            this.shopType = shopType;
+            this.buyCoefficient = buyCoefficient;
+            this.buyIterator = buyIterator;
+            this.buyReturnRate = buyReturnRate;
+            expShop = true;
         }
 
         /**
@@ -149,6 +167,32 @@ public class ClickType {
         public ShopType getShopType() {
             return shopType;
         }
+
+        /**
+         * @return The buyCoefficient
+         */
+        public double getBuyCoefficient() {
+            return buyCoefficient;
+        }
+
+        /**
+         * @return The buyIterator
+         */
+        public int getBuyIterator() {
+            return buyIterator;
+        }
+
+        /**
+         * @return The buyReturnRate
+         */
+        public int getBuyReturnRate() {
+            return buyReturnRate;
+        }
+
+
+        public boolean isExpShop() {
+            return  expShop;
+        }
     }
 
     public static class SelectClickType extends ClickType {
@@ -159,6 +203,11 @@ public class ClickType {
         private double sellPrice;
         private ShopType shopType;
 
+        private double buyCoefficient;
+        private int buyIterator;
+        private int buyReturnRate;
+        private boolean expShop;
+
         public SelectClickType(GameMode gameMode, int amount, double buyPrice, double sellPrice, ShopType shopType) {
             super(EnumClickType.SELECT_ITEM);
             this.gameMode = gameMode;
@@ -166,6 +215,46 @@ public class ClickType {
             this.sellPrice = sellPrice;
             this.buyPrice = buyPrice;
             this.shopType = shopType;
+        }
+
+        // ClickType for Exp shops
+        public SelectClickType(GameMode gameMode, int amount, double buyPrice, double sellPrice, ShopType shopType, double buyCoefficient, int buyIterator, int buyReturnRate) {
+            super(EnumClickType.SELECT_ITEM);
+            this.gameMode = gameMode;
+            this.amount = amount;
+            this.sellPrice = sellPrice;
+            this.buyPrice = buyPrice;
+            this.shopType = shopType;
+            this.buyCoefficient = buyCoefficient;
+            this.buyIterator = buyIterator;
+            this.buyReturnRate = buyReturnRate;
+            expShop = true;
+        }
+
+        /**
+         * @return The buyCoefficient
+         */
+        public double getBuyCoefficient() {
+            return buyCoefficient;
+        }
+
+        /**
+         * @return The buyIterator
+         */
+        public int getBuyIterator() {
+            return buyIterator;
+        }
+
+        /**
+         * @return The buyReturnRate
+         */
+        public int getBuyReturnRate() {
+            return buyReturnRate;
+        }
+
+
+        public boolean isExpShop() {
+            return  expShop;
         }
 
         /**

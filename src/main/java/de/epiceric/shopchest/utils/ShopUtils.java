@@ -108,6 +108,7 @@ public class ShopUtils {
             if (shop.getShopType() != ShopType.ADMIN) {
                 playerShopAmount.compute(shop.getVendor().getUniqueId(), (uuid, amount) -> amount == null ? new Counter(1) : amount.increment());
             }
+            plugin.debug("addShop call");
             plugin.getShopDatabase().addShop(shop, callback);
         } else {
             if (callback != null) callback.callSyncResult(shop.getID());
@@ -352,8 +353,8 @@ public class ShopUtils {
                     int z = loc.getBlockZ() / 16;
                     
                     // Don't add shop if chunk is no longer loaded
-                    if (!loc.getWorld().isChunkLoaded(x, z)) {
-                        continue;
+                        if (!loc.getWorld().isChunkLoaded(x, z)) {
+                            continue;
                     }
 
                     if (shop.create(true)) {

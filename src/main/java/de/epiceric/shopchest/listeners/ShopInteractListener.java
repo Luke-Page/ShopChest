@@ -20,11 +20,7 @@ import de.epiceric.shopchest.shop.Shop;
 import de.epiceric.shopchest.shop.ShopProduct;
 import de.epiceric.shopchest.shop.Shop.ShopType;
 import de.epiceric.shopchest.sql.Database;
-import de.epiceric.shopchest.utils.ClickType;
-import de.epiceric.shopchest.utils.ItemUtils;
-import de.epiceric.shopchest.utils.Permissions;
-import de.epiceric.shopchest.utils.ShopUtils;
-import de.epiceric.shopchest.utils.Utils;
+import de.epiceric.shopchest.utils.*;
 import de.epiceric.shopchest.utils.ClickType.CreateClickType;
 import fr.xephi.authme.api.v3.AuthMeApi;
 import net.milkbowl.vault.economy.Economy;
@@ -142,8 +138,14 @@ public class ShopInteractListener implements Listener {
             double buyPrice = clickType.getBuyPrice();
             double sellPrice = clickType.getSellPrice();
             ShopType shopType = clickType.getShopType();
-    
-            create(p, b.getLocation(), product, buyPrice, sellPrice, shopType);
+            if (clickType.isExpShop()) {
+                double buyCoefficient = clickType.getBuyCoefficient();
+                int buyIterator = clickType.getBuyIterator();
+                int buyReturnRate = clickType.getBuyReturnRate();
+                create(p, b.getLocation(), product, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate);
+            } else {
+                create(p, b.getLocation(), product, buyPrice, sellPrice, shopType);
+            }
         }
 
         e.setCancelled(true);
@@ -503,6 +505,56 @@ public class ShopInteractListener implements Listener {
     }
 
     /**
+     * Create a new exponential shop
+     *
+     * @param executor  Player, who executed the command, will receive the message and become the vendor of the shop
+     * @param location  Where the shop will be located
+     * @param product   Product of the Shop
+     * @param buyPrice  Buy price
+     * @param sellPrice Sell price
+     * @param shopType  Type of the shop
+     */
+    private void create(final Player executor, final Location location, final ShopProduct product, final double buyPrice, final double sellPrice, final ShopType shopType,
+                        double buyCoefficient, int buyIterator, int buyReturnRate) {
+        plugin.debug(executor.getName() + " is creating new exponential shop...");
+
+        if (!executor.hasPermission(Permissions.CREATE)) {
+            executor.sendMessage(LanguageUtils.getMessage(Message.NO_PERMISSION_CREATE));
+            plugin.debug(executor.getName() + " is not permitted to create the shop");
+            return;
+        }
+
+        double creationPrice = (shopType == ShopType.NORMAL) ? Config.shopCreationPriceNormal : Config.shopCreationPriceAdmin;
+        Shop shop = new Shop(plugin, executor, product, location, buyPrice, sellPrice, shopType, buyCoefficient, buyIterator, buyReturnRate);
+
+        ShopCreateEvent event = new ShopCreateEvent(executor, shop, creationPrice);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled() && !executor.hasPermission(Permissions.CREATE_PROTECTED)) {
+            plugin.debug("Create event cancelled");
+            executor.sendMessage(LanguageUtils.getMessage(Message.NO_PERMISSION_CREATE_PROTECTED));
+            return;
+        }
+
+        if (creationPrice > 0) {
+            EconomyResponse r = plugin.getEconomy().withdrawPlayer(executor, location.getWorld().getName(), creationPrice);
+            if (!r.transactionSuccess()) {
+                plugin.debug("Economy transaction failed: " + r.errorMessage);
+                executor.sendMessage(LanguageUtils.getMessage(Message.ERROR_OCCURRED, new Replacement(Placeholder.ERROR, r.errorMessage)));
+                return;
+            }
+        }
+
+        shop.create(true);
+
+        plugin.debug("Shop created");
+        shopUtils.addShop(shop, true);
+
+        Message message = shopType == ShopType.ADMIN ? Message.ADMIN_SHOP_CREATED : Message.SHOP_CREATED;
+        executor.sendMessage(LanguageUtils.getMessage(message, new Replacement(Placeholder.CREATION_PRICE, creationPrice)));
+    }
+
+
+    /**
      * Remove a shop
      * @param executor Player, who executed the command and will receive the message
      * @param shop Shop to be removed
@@ -776,7 +828,7 @@ public class ShopInteractListener implements Listener {
 
                 EconomyResponse r = econ.withdrawPlayer(executor, worldName, newPrice);
 
-                if (r.transactionSuccess()) {
+                if (r.transactionSuccess()) {   // Player Shops
                     EconomyResponse r2 = (shop.getShopType() != ShopType.ADMIN) ? econ.depositPlayer(shop.getVendor(), worldName, newPrice) : null;
 
                     if (r2 != null) {
@@ -825,7 +877,7 @@ public class ShopInteractListener implements Listener {
                             econ.withdrawPlayer(shop.getVendor(), worldName, newPrice);
                             econ.depositPlayer(executor, worldName, newPrice);
                         }
-                    } else {
+                    } else { // Admin Shops
                         ShopBuySellEvent event = new ShopBuySellEvent(executor, shop, ShopBuySellEvent.Type.BUY, newAmount, newPrice);
                         Bukkit.getPluginManager().callEvent(event);
 
@@ -836,6 +888,12 @@ public class ShopInteractListener implements Listener {
                         }
 
                         database.logEconomy(executor, shop, newProduct, newPrice, ShopBuySellEvent.Type.BUY, null);
+                        if (shop.isExpShop()) {
+                            int test  = database.getPlayerIncreaseCounter(shop.getID(), executor, null);
+                            plugin.getLogger().warning("get player increase returned: " + test);
+                            plugin.getLogger().warning("test?");
+                            database.incrementPlayerIncreaseCounter(shop.getID(), executor, null);
+                        }
 
                         addToInventory(inventory, newProduct);
                         executor.updateInventory();
@@ -932,6 +990,7 @@ public class ShopInteractListener implements Listener {
             if (newAmount > amount) newAmount = amount;
 
             ShopProduct newProduct = new ShopProduct(product, newAmount);
+            //            need to set price before this line                //
             double newPrice = (price / amount) * newAmount;
 
             if (freeSpace >= newAmount || shop.getShopType() == ShopType.ADMIN) {
@@ -1037,7 +1096,7 @@ public class ShopInteractListener implements Listener {
     /**
      * Adds items to an inventory
      * @param inventory The inventory, to which the items will be added
-     * @param itemStack Items to add
+//     * @param itemStack Items to add
      * @return Whether all items were added to the inventory
      */
     private boolean addToInventory(Inventory inventory, ShopProduct product) {
@@ -1096,7 +1155,7 @@ public class ShopInteractListener implements Listener {
     /**
      * Removes items to from an inventory
      * @param inventory The inventory, from which the items will be removed
-     * @param itemStack Items to remove
+//     * @param itemStack Items to remove
      * @return Whether all items were removed from the inventory
      */
     private boolean removeFromInventory(Inventory inventory, ShopProduct product) {

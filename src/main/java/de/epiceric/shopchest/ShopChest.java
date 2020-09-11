@@ -29,7 +29,7 @@ import de.epiceric.shopchest.listeners.WorldGuardListener;
 import de.epiceric.shopchest.shop.Shop;
 import de.epiceric.shopchest.shop.Shop.ShopType;
 import de.epiceric.shopchest.sql.Database;
-import de.epiceric.shopchest.sql.MySQL;
+//import de.epiceric.shopchest.sql.MySQL;
 import de.epiceric.shopchest.sql.SQLite;
 import de.epiceric.shopchest.utils.Callback;
 import de.epiceric.shopchest.utils.ClickType;
@@ -354,21 +354,21 @@ public class ShopChest extends JavaPlugin {
             debug("Using database type: SQLite");
             getLogger().info("Using SQLite");
             database = new SQLite(this);
-        } else {
-            debug("Using database type: MySQL");
-            getLogger().info("Using MySQL");
-            database = new MySQL(this);
-            if (Config.databaseMySqlPingInterval > 0) {
-                Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
-                    @Override
-                    public void run() {
-                        if (database instanceof MySQL) {
-                            ((MySQL) database).ping();
-                        }
-                    }
-                }, Config.databaseMySqlPingInterval * 20L, Config.databaseMySqlPingInterval * 20L);
-            }
-        }
+        } //else {
+//            debug("Using database type: MySQL");
+//            getLogger().info("Using MySQL");
+//            database = new MySQL(this);
+//            if (Config.databaseMySqlPingInterval > 0) {
+//                Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        if (database instanceof MySQL) {
+//                            ((MySQL) database).ping();
+//                        }
+//                    }
+//                }, Config.databaseMySqlPingInterval * 20L, Config.databaseMySqlPingInterval * 20L);
+//            }
+//        }
     }
 
     private void checkForUpdates() {
